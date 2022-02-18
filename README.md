@@ -9,4 +9,6 @@
 
 * 周志明 凤凰架构 https://icyfenix.cn/
 * 算法练习册 codetop.com
-  
+
+# 手册
+  * linux https://www.kernel.org/doc/man-pages/
