@@ -1,4 +1,4 @@
-# blogs
+# --
 一些有趣的博客和书籍📚
 
 
@@ -12,3 +12,5 @@
 
 # 手册
   * linux https://www.kernel.org/doc/man-pages/
+
+* api大集合开源 https://github.com/public-apis/public-apis#books
