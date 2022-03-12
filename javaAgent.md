@@ -23,5 +23,7 @@
       <img width="835" alt="image" src="https://user-images.githubusercontent.com/46739345/158031252-59a70a8a-b871-45f3-8881-9ce1c2e671bd.png">
 
 #### 2.class not found
-* 
+* 在加载完agent classes和用户classes后，获得增强后的字节码，增强后的字节码通过app class loader加载过程中 发现某些类不可得。
+* 增强代码由agent提供，和用户代码一起由app class loader加载。
+* 解决方案：
 
