@@ -2,6 +2,7 @@
 * 源自MegaEase分享 
 * https://github.com/megaease
 * 依赖技术：https://github.com/raphw/byte-buddy
+* agent介绍：https://ken-ljq.github.io/2018/JVM%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7Agent%E8%AE%BE%E8%AE%A1%E5%AE%9E%E7%8E%B0-%E4%BA%8C/
 
 ### javaAgent 加载
 * <img width="749" alt="image" src="https://user-images.githubusercontent.com/46739345/158030545-529fdeef-ea5f-4394-98b1-3fb289e9a9ef.png">
