@@ -5,6 +5,8 @@
 * redis设计实现作者 黄健宏 主页: http://huangz.me/ 
     * 翻译的一些书籍, go语言趣学指南,http://gpwgcn.com/ 
 
+
+* martin 分布式：https://www.youtube.com/watch?v=UEAMfLPZZhE&list=PLeKd45zvjcDFUEv_ohr_HdUFe97RItdiB
 * 周志明 凤凰架构 https://icyfenix.cn/
 * 算法练习册 codetop.com
 * aliyun help doc : https://help.aliyun.com/product/26340.html
