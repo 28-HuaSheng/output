@@ -122,7 +122,7 @@ dubbo扩展点特性
 ● 开始调用
   ○ ExtensionLoader.getExtensionLoader(LoadBalance.class).getExtension(Constants.DEFAULT_LOADBALANCE);
   ○ ExtensionLoader.getExtensionLoader(Protocol.class).getExtension(DubboProtocol.NAME);
- 
+�
 ● ExtensionLoader两个主要缓存
   ○ class -> ExtensionLoader 一个可扩展点对应一个loader
   ○ class -> Object 类型to实例
@@ -163,20 +163,20 @@ dubbo扩展点特性
   d. injectExtension方法通过AdaptiveExtensionFactory注入 ： 判断set方法，然后反射调用
 5. 关于ExtensionLoader
   a. 构造函数的objectFactory生成的应该是AdaptiveExtensionFactory,但是上面分析2.getAdaptiveExtension的时候，生成的procal$Adaptivel类，这点问题遗留
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+�
+�
+�
+�
+�
+�
+�
+�
+�
+�
+�
+�
+�
+�
 
 
 
