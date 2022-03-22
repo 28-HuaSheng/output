@@ -138,7 +138,7 @@ _**有超时丢弃功能之后，会保证服务还能正常处理一些任务�
    - _ExtensionLoader_.getExtensionLoader(_LoadBalance_.class).getExtension(_Constants_.**_DEFAULT_LOADBALANCE_**);
    - _ExtensionLoader_.getExtensionLoader(_Protocol_.class).getExtension(_DubboProtocol_.**_NAME_**);
 
- 
+
 
 - _ExtensionLoader两个主要缓存_
    - _class -> ExtensionLoader 一个可扩展点对应一个loader_
@@ -181,20 +181,21 @@ _**有超时丢弃功能之后，会保证服务还能正常处理一些任务�
 5. _关于ExtensionLoader_
    1. _构造函数的objectFactory生成的应该是AdaptiveExtensionFactory,但是上面分析2._getAdaptiveExtension的时候，生成的procal$Adaptivel类，这点问题遗留
 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
