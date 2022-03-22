@@ -31,5 +31,4 @@
       3. coolshell关于restful的博客: https://coolshell.cn/articles/22173.html
 
 
-### yuque 知识库
-   * 基础组件知识库 ：https://www.yuque.com/haohaoxuexi-z7xzx/vtifqc
+### [rpc](https://github.com/28-HuaSheng/output/blob/main/rpc.md)
