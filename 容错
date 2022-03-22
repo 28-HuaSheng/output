@@ -1,0 +1,126 @@
+### 场景分析
+- 单service不可用，引发的雪崩
+   - service-a 调用 service-b，service-b调用service-c，如果service-c不可用，会扩散至整个集群
+   - service-c 作为provider, 内部就是rpc当时 队列-线程池 模型图。
+- 某个服务qps增加过多
+   - service-a(每个单独的服务都可以考虑为一个集群) 和 service-b(集群) 都调用service-c(集群), 本来按照估算service-c提供5000qps，service-b qps突然加到几w, 那service-c处理不过来就会堆积，a对c的调用也不可以进行了。
+### 解决
+#### 一. 资源隔离
+##### 1.资源隔离-船隔舱(进一部分水,对整体不影响)
+
+   1. 主要对线程资源隔离,线程池。 需要按照请求分割开，否则 如 查找用户的请求如果慢,而且没有隔离分散在各个线程池，那么出问题也是白搭。
+   1. consume 和 provide 都需要进行隔离
+   1. ![image.png](https://cdn.nlark.com/yuque/0/2022/png/22881482/1646490130538-b51d3f05-1a53-433e-88e0-24b518f04e95.png#clientId=u6b087f2a-eae8-4&crop=0&crop=0&crop=1&crop=1&from=paste&height=249&id=u22db5df3&margin=%5Bobject%20Object%5D&name=image.png&originHeight=498&originWidth=1260&originalType=binary&ratio=1&rotation=0&showTitle=false&size=128829&status=done&style=none&taskId=u57897d39-063b-4fd1-8b8e-2c48721cb97&title=&width=630)
+   1. ![image.png](https://cdn.nlark.com/yuque/0/2022/png/22881482/1646490107437-70116c12-9855-4f8a-9d3d-09ee536ab217.png#clientId=u6b087f2a-eae8-4&crop=0&crop=0&crop=1&crop=1&from=paste&height=237&id=u34e7bd1a&margin=%5Bobject%20Object%5D&name=image.png&originHeight=474&originWidth=1256&originalType=binary&ratio=1&rotation=0&showTitle=false&size=112728&status=done&style=none&taskId=u597c15a9-d0f4-4fdc-9358-5e355ef000e&title=&width=628)
+##### 2.信号量 控制并发量
+##### 3.线程隔离和信号量可以共同使用
+
+   5. ![image.png](https://cdn.nlark.com/yuque/0/2022/png/22881482/1646490193229-b059d023-1f83-4ae2-a141-d14e703d07fc.png#clientId=u6b087f2a-eae8-4&crop=0&crop=0&crop=1&crop=1&from=paste&height=388&id=ua8a412d6&margin=%5Bobject%20Object%5D&name=image.png&originHeight=526&originWidth=722&originalType=binary&ratio=1&rotation=0&showTitle=false&size=161822&status=done&style=none&taskId=u3943234c-8ee8-4b8f-aacb-e12539336c9&title=&width=533)
+   5. 对比：
+      1. ![image.png](https://cdn.nlark.com/yuque/0/2022/png/22881482/1646490231758-317117a7-95eb-43be-a508-e13f7e9c2905.png#clientId=u6b087f2a-eae8-4&crop=0&crop=0&crop=1&crop=1&from=paste&height=112&id=u669a4beb&margin=%5Bobject%20Object%5D&name=image.png&originHeight=224&originWidth=1090&originalType=binary&ratio=1&rotation=0&showTitle=false&size=40924&status=done&style=none&taskId=u5fa8896e-ee38-40fe-8c15-1c061d3c264&title=&width=545)
+      1. 线程切换：一个工作线程 转 分配的线程池 。一个直接使用工作线程，只要拿到信号就ok
+      1. 异步：换线程池了，工作线程可以做其他事情
+      1. 超时：线程池可以使用线程池的超时。信号量这里没有超时，依赖框架本身的，我们之前的消息队列高手课rpc 使用的超时方案。
+#### 二. 熔断
+##### 1.场景
+
+1. 双十一关闭退款
+1. 关闭换头像
+1. 达到某一阀值，自动触发
+##### 2.涉及
+
+1. 可熔断服务 - 熔断哪个服务？
+1. 主动 自动 触发
+1. 恢复
+##### 3.断路器设计
+###### a . 断路器控制逻辑
+
+   1. ![image.png](https://cdn.nlark.com/yuque/0/2022/png/22881482/1646566401294-d91b8c7c-5e59-4c2c-becc-4ec6ed9f4d1c.png#clientId=u0a012e60-c94a-4&crop=0&crop=0&crop=1&crop=1&from=paste&height=216&id=uaf091f23&margin=%5Bobject%20Object%5D&name=image.png&originHeight=432&originWidth=946&originalType=binary&ratio=1&rotation=0&showTitle=false&size=73460&status=done&style=none&taskId=ud760b72e-7ef6-428e-932b-eed862dcca7&title=&width=473)
+###### b. 断路器阀值和统计数据
+失败达到百分比多少开始触发：那么我一天中前20小时都是正常的，到了20点 有5分钟不可用，但是百分比还没达到，那么我断路触发不了。 或者设计的不可用请求30%，每次到了29%好了，那么也触发不了，但是不触发又是不对的。
+
+- 数据类型：百分比值
+- 颗粒度
+   - 集群/节点
+      - 集群：client C调用 a,b,c,d，a服务集群有4个节点，一个节点不可用❌的话，对a来讲25%的不可用，那么出发熔断的话，a还有三台机器可以使用呢。这点不友好
+      - 节点：接着上面的，a服务集群有 1，2，3，4个节点，那么每个节点里面还有多个service呢，每个service还有多个方法呢。某个service不可用，不代表这个节点不可用，或者某个方法不可用❌，也不代表某个service不可用
+   - 服务/方法
+      - 按照方法的颗粒度最细
+- 数据结构 + 统计单元
+   - ![image.png](https://cdn.nlark.com/yuque/0/2022/png/22881482/1646571181735-320b26ef-eeec-4b41-9582-de09e480d815.png#clientId=u0a012e60-c94a-4&crop=0&crop=0&crop=1&crop=1&from=paste&height=176&id=u3cb18ce2&margin=%5Bobject%20Object%5D&name=image.png&originHeight=352&originWidth=532&originalType=binary&ratio=1&rotation=0&showTitle=false&size=35918&status=done&style=none&taskId=u7277880d-47f2-4366-b42f-418bc31b995&title=&width=266)
+   - 成功请求次数，失败请求个数，超时个数，开始统计时间
+
+###### c. 断路器阀值和统计数据设计
+
+- 减少误判
+   - 统计间隔时间1s一次，如果网络1s的抖动，也触发显然不合理，太长的话，10分钟统计一次，会导致数据量太多，即使有部分不可用，也触发不了断路
+- 滑动窗口设计
+   - ![image.png](https://cdn.nlark.com/yuque/0/2022/png/22881482/1646579469310-7b92d2b2-1977-40e1-b679-3060d309317a.png#clientId=u0a012e60-c94a-4&crop=0&crop=0&crop=1&crop=1&from=paste&height=167&id=udb17df83&margin=%5Bobject%20Object%5D&name=image.png&originHeight=718&originWidth=1696&originalType=binary&ratio=1&rotation=0&showTitle=false&size=134354&status=done&style=none&taskId=u8bcec5e7-f716-468d-94ea-71b28c493a5&title=&width=394)
+   - 比如5s一个bucket, 一个bucket就是这5s内所有收到的请求数据，每新开一个bucket, 触发一次计算看需不需要熔断。不可能每新来一个请求就计算一次，那样太频繁了。
+   - 但是计算多久的数据呢？需要摒弃一些旧数据，比如我每次都计算前10个bucket的数据。
+   - ![image.png](https://cdn.nlark.com/yuque/0/2022/png/22881482/1646580101171-8cd01a53-8f29-4f50-b11e-29eeafbe0348.png#clientId=u0a012e60-c94a-4&crop=0&crop=0&crop=1&crop=1&from=paste&height=99&id=uc120d92b&margin=%5Bobject%20Object%5D&name=image.png&originHeight=384&originWidth=1586&originalType=binary&ratio=1&rotation=0&showTitle=false&size=69300&status=done&style=none&taskId=ud0bce392-3eb0-4174-ba86-cd32b08991b&title=&width=408)
+- 数据结构选择
+   - 链表
+   - 循环数组，我们使用这种
+- 滑动窗口代码实现
+   - 数据结构
+      - Bucket
+         - ![image.png](https://cdn.nlark.com/yuque/0/2022/png/22881482/1646580819899-eb33db26-f3ae-4d62-851b-a5179925f282.png#clientId=u0a012e60-c94a-4&crop=0&crop=0&crop=1&crop=1&from=paste&height=99&id=uc2fca168&margin=%5Bobject%20Object%5D&name=image.png&originHeight=236&originWidth=586&originalType=binary&ratio=1&rotation=0&showTitle=false&size=73410&status=done&style=none&taskId=uaac14e30-5548-46dd-98a2-20c476f8dca&title=&width=247) 开始时间/成功数量/失败数量/超时时间
+      - BucketCircularArray 循环数组封装类
+         - ![image.png](https://cdn.nlark.com/yuque/0/2022/png/22881482/1646580937585-16fed9c7-3789-40cf-9ad8-9df4d3088b13.png#clientId=u0a012e60-c94a-4&crop=0&crop=0&crop=1&crop=1&from=paste&height=121&id=ub7ab972d&margin=%5Bobject%20Object%5D&name=image.png&originHeight=242&originWidth=428&originalType=binary&ratio=1&rotation=0&showTitle=false&size=58002&status=done&style=none&taskId=uf426e8fd-b6b4-4468-9bf7-b8764cd648b&title=&width=214) 数组长度/有数据的长度/正经的数据/头指针/尾指针
+            - maxSize 初始化10个长度，如果觉得统计不精准，可以扩大，不能超过maxSize。
+            - head到tail之间的数据 相当于就是最新的这些数据，可以想象一个环。
+            - 另一个纬度可以想象，tail就是往后头一直延长，head也往后移动，这样head-tail之间也是永远是一个定长。
+         - 方法：
+            - addBucket() 方法里调用-> incrementTail()
+               - ![image.png](https://cdn.nlark.com/yuque/0/2022/png/22881482/1646581246453-967e4c25-1a91-42d3-b0ca-418b85726c5b.png#clientId=u0a012e60-c94a-4&crop=0&crop=0&crop=1&crop=1&from=paste&height=201&id=uaf1468da&margin=%5Bobject%20Object%5D&name=image.png&originHeight=618&originWidth=620&originalType=binary&ratio=1&rotation=0&showTitle=false&size=137264&status=done&style=none&taskId=ud9dd634d-21d7-4ed7-a314-7d72a6f8d66&title=&width=202)
+               - 新增bucket ,  数据没满的话 head指针不用移动 tail移动就可以，数据满的话，head指针也需要移动，head前的数据摒弃。
+            - tail() - 获取最后一个有数据的位置的数据,也就是tail指针前一个槽（每一次放新bucket的地方）
+            - toArray()  - 把封装的循环数组里所有不空的bucket拿出来，汇总，以便之后计算需不需要断路。
+               - ![image.png](https://cdn.nlark.com/yuque/0/2022/png/22881482/1646656609445-34b0c3c1-0893-45bc-a299-55f2fc3eb766.png#clientId=u0a012e60-c94a-4&crop=0&crop=0&crop=1&crop=1&from=paste&height=307&id=u6f6f6848&margin=%5Bobject%20Object%5D&name=image.png&originHeight=614&originWidth=750&originalType=binary&ratio=1&rotation=0&showTitle=false&size=149267&status=done&style=none&taskId=uea79e135-d345-4e5d-9545-a51cf28c516&title=&width=375)
+   - 断路器设计 CircuitBreaker
+      - tryMarkOpen -> close变open ------开启断路器,只能从close变为开
+         - 传入百分比值，方法里compareAndSet,确保close 变 open
+      - attempExecution -> open变halfOpen ---------超过一定的时间（窗口期），尝试变为半开状态
+         - 代码里判断时间，到了就开启半开状态
+      - markSuccess -> halfOpen变close ---------- 半开状态尝试看能不能请求成功，然后关闭断路器
+         - compreAndSet
+      - markSuccrss -> halfOpen变open ------半开状态请求没成功，继续保持断路
+         - compreAndSet
+   - 控制器 MetricTimeWindow
+      - ![image.png](https://cdn.nlark.com/yuque/0/2022/png/22881482/1646664821355-5d01d973-9588-4c2b-b463-9ea5791f7458.png#clientId=u0a012e60-c94a-4&crop=0&crop=0&crop=1&crop=1&from=paste&height=123&id=u83925902&margin=%5Bobject%20Object%5D&name=image.png&originHeight=246&originWidth=916&originalType=binary&ratio=1&rotation=0&showTitle=false&size=106682&status=done&style=none&taskId=uc1b96e0b-a6d9-46dd-98b5-707b27e90a1&title=&width=458)
+         - 构造函数：service，方法，然后就是上面的循环数组。说明一个方法对应一个滑动窗口来控制，是方法级别的。
+      - addEvent方法，来一个请求事件，执行一次
+         - 先获取当前bucket , 再判断请求状态，成功的话 看要不要半开-关闭，失败或者超时，半开-开启。
+         - 这里不用害怕 错误把断路器打开或者关闭，因为他判断了状态是半开才会执行。
+         - ![image.png](https://cdn.nlark.com/yuque/0/2022/png/22881482/1646665329390-ffb7d50a-b2fb-47e1-b892-3035f26e54f8.png#clientId=u0a012e60-c94a-4&crop=0&crop=0&crop=1&crop=1&from=paste&height=172&id=u5099a538&margin=%5Bobject%20Object%5D&name=image.png&originHeight=592&originWidth=1396&originalType=binary&ratio=1&rotation=0&showTitle=false&size=319605&status=done&style=none&taskId=u031e6bb3-a228-4043-87bd-003080eed58&title=&width=405)
+      - getCurrentBucket()
+         - 这个方法里在获取当前bucket的时候，拿bucket或者创建新的bucket，如果是新建bucket的情况呢，说明到了我们需要判断整体百分比的情况了。
+         - 流程：
+            - 如果时间还落在当前桶🪣内，就用当前的，如果不是，就准备创建新的。
+            - 在等待写锁🔒期间，可能其他线程已经创建了，所以需要一个double check
+         - ![image.png](https://cdn.nlark.com/yuque/0/2022/png/22881482/1646665616130-e7bc0b25-a97c-40e0-a9d7-02465d53ce7b.png#clientId=u0a012e60-c94a-4&crop=0&crop=0&crop=1&crop=1&from=paste&height=178&id=u2123ce3b&margin=%5Bobject%20Object%5D&name=image.png&originHeight=680&originWidth=1386&originalType=binary&ratio=1&rotation=0&showTitle=false&size=344283&status=done&style=none&taskId=u642a551e-8d5b-4e6c-8db3-4aaa9756dd6&title=&width=363)
+      - dealCreateBucketEvent()
+         - 计算整体百分比，然后tryMarkOpen(); 这个方法里如果百分比达到比率，就会开启断路器
+         - ![image.png](https://cdn.nlark.com/yuque/0/2022/png/22881482/1646665660157-a4401100-ffbd-4399-be1e-614813ad1a84.png#clientId=u0a012e60-c94a-4&crop=0&crop=0&crop=1&crop=1&from=paste&height=208&id=u5c6a2deb&margin=%5Bobject%20Object%5D&name=image.png&originHeight=618&originWidth=896&originalType=binary&ratio=1&rotation=0&showTitle=false&size=158592&status=done&style=none&taskId=u6a3a4fa6-718e-4bc4-97e8-d4cf215c017&title=&width=301)
+
+#### 三. 降级
+
+1. 可降级服务
+1. 降级方法 - 降级之后执行哪个方法，比如商品计数不可用，我降级为假数据显示总数
+1. 降级触发：熔断之后的降级，调用超时异常
+1. 恢复
+
+ 
+
+#### 四. Hystrix
+
+- hystrix 几种代码用法，代码继承
+- hystrix注解用法
+- hystrix配置根据 配置中心配置 动态切换
+   - ![image.png](https://cdn.nlark.com/yuque/0/2022/png/22881482/1646756928766-50f17037-5909-479c-b95b-8880f8f3277c.png#clientId=u0dd75b0a-6bcc-4&crop=0&crop=0&crop=1&crop=1&from=paste&height=348&id=u17beea2d&margin=%5Bobject%20Object%5D&name=image.png&originHeight=696&originWidth=1204&originalType=binary&ratio=1&rotation=0&showTitle=false&size=300547&status=done&style=none&taskId=uce086f63-8931-429b-933a-e78c63f127c&title=&width=602)
+   - 注解进行参数配置，executeCommand执行代码，，CommandFallBack执行失败回调逻辑
+   - ![image.png](https://cdn.nlark.com/yuque/0/2022/png/22881482/1646756991423-75fce845-c64a-4a38-988c-4891cf643707.png#clientId=u0dd75b0a-6bcc-4&crop=0&crop=0&crop=1&crop=1&from=paste&height=398&id=u92200966&margin=%5Bobject%20Object%5D&name=image.png&originHeight=796&originWidth=990&originalType=binary&ratio=1&rotation=0&showTitle=false&size=290137&status=done&style=none&taskId=u82126d58-da4e-422b-bf2d-0a567f159f7&title=&width=495)
+   - 上面有一个关于 动态修改注解值的知识点，如 @XXX(value="")，Proxy.getInvocationHandler(该注解对象) 获取注解动态代理实际处理handler，@XXX注解的属性都在获取到的map里。这个使用参考：
+   -  `https://www.javabugs.com/article/68 `
+
