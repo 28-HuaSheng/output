@@ -21,6 +21,7 @@
 
 # 手册
   * linux https://www.kernel.org/doc/man-pages/
+  * bytebuffer http://thinkhejie.github.io/2018/05/01/%E5%9B%BE%E8%A7%A3ByteBuffer/
 
 * api大集合开源 https://github.com/public-apis/public-apis#books
 
