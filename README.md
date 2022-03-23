@@ -6,7 +6,9 @@
    * go语言趣学指南,http://gpwgcn.com/ 
 
 * terraform : https://lonegunmanb.github.io/introduction-terraform/
-* k8s vs terraform :https://ritza.co/articles/kubernetes-vs-docker-vs-openshift-vs-ecs-vs-jenkins-vs-terraform/#kubernetes-vs-docker
+* k8s vs terraform 
+  * https://ritza.co/articles/kubernetes-vs-docker-vs-openshift-vs-ecs-vs-jenkins-vs-terraform/#kubernetes-vs-docker
+  * https://stackshare.io/stackups/kubernetes-vs-terraform-vs-
 
 * 6年没更新的raft:https://github.com/benbjohnson/thesecretlivesofdata
 
