@@ -1,9 +1,11 @@
 #--
 📚
-* 左耳的bolg : https://coolshell.cn/
+* bolg
+   * https://coolshell.cn/
+   * http://huangz.me/ 
+   * go语言趣学指南,http://gpwgcn.com/ 
 
-* 黄健宏 主页: http://huangz.me/ 
-    * 翻译的一些书籍, go语言趣学指南,http://gpwgcn.com/ 
+* terraform:https://lonegunmanb.github.io/introduction-terraform/
 
 * 6年没更新的raft:https://github.com/benbjohnson/thesecretlivesofdata
 
