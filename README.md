@@ -37,5 +37,8 @@
       2. microsoft restful api  guideline-中: https://www.yanxishe.com/blogDetail/14233#63-silent-fail-rule
       3. coolshell关于restful的博客: https://coolshell.cn/articles/22173.html
 
+### sh
+  * shell %90 command : https://cloud.tencent.com/developer/news/687190
+
 
 ### [rpc](https://github.com/28-HuaSheng/output/blob/main/rpc.md)
